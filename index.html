@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aquatic Speed Typer - Ultra Stable</title>
+    <style>
+        :root {
+            --water: #00b4d8;
+            --deep-water: #0077b6;
+            --sand: #ffddaa;
+            --correct: #2ecc71;
+            --wrong: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #caf0f8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* Aquatic Decor */
+        .ocean-bg {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            height: 100px;
+            background: var(--sand);
+            z-index: -1;
+            border-top: 5px solid #edc9af;
+        }
+
+        /* The Pool */
+        #pool {
+            width: 95%;
+            max-width: 800px;
+            height: 120px;
+            background: linear-gradient(var(--water), var(--deep-water));
+            border: 10px solid #333;
+            border-radius: 20px;
+            position: relative;
+            margin: 20px 0;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+        }
+
+        #swimmer {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%) scaleX(-1); /* Facing RIGHT */
+            font-size: 50px;
+            z-index: 10;
+            transition: left 0.1s linear;
+        }
+
+        .bubbles {
+            position: absolute;
+            bottom: -20px;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, white 20%, transparent 20%);
+            background-size: 50px 50px;
+            animation: move-bubbles 3s linear infinite;
+            opacity: 0.2;
+        }
+
+        @keyframes move-bubbles {
+            from { transform: translateY(0); }
+            to { transform: translateY(-100px); }
+        }
+
+        /* Typing Game UI */
+        #game-container {
+            background: white;
+            width: 95%;
+            max-width: 650px;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        #prompt-container {
+            font-size: 1.4rem;
+            line-height: 1.8;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            text-align: left;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        /* Highlights */
+        .char { color: #888; border-radius: 2px; }
+        .correct { background-color: var(--correct); color: white; }
+        .incorrect { background-color: var(--wrong); color: white; }
+        .current { border-bottom: 4px solid var(--deep-water); color: black; }
+
+        #typing-input {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: var(--deep-water);
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            background: #0077b6;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        button:hover { background: #023e8a; transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <h1>🏊‍♂️ Speed Swimmer Typer</h1>
+
+    <div id="pool">
+        <div class="bubbles"></div>
+        <div id="swimmer">🏊‍♂️</div>
+    </div>
+
+    <div id="game-container">
+        <div id="prompt-container">Click "Start Race" below!</div>
+        
+        <input type="text" id="typing-input" placeholder="Get ready..." disabled autocomplete="off">
+        
+        <div class="stats">
+            <span>Speed: <span id="wpm">0</span> WPM</span>
+            <span>Accuracy: <span id="accuracy">100</span>%</span>
+        </div>
+
+        <button id="start-btn">Start Race</button>
+    </div>
+
+    <div class="ocean-bg"></div>
+
+    <script>
+        const prompts = [
+            "Sea anemones may look like colorful flowers but they are actually predatory animals.",
+            "The sailfish is the fastest fish in the world reaching speeds of up to sixty eight miles per hour.",
+            "Crabs have a hard outer shell that they must shed in order to grow bigger.",
+            "A group of stingrays is called a fever and they can be found in shallow coastal waters.",
+            "Whale sharks are the largest fish in the sea but they only eat tiny plankton.",
+            "Most of the world's oxygen is produced by marine plants called phytoplankton in the ocean."
+        ];
+
+        let isRacing = false;
+        let startTime;
+        let currentPrompt = "";
+        
+        const swimmer = document.getElementById('swimmer');
+        const input = document.getElementById('typing-input');
+        const promptDiv = document.getElementById('prompt-container');
+        const startBtn = document.getElementById('start-btn');
+        const wpmDisp = document.getElementById('wpm');
+        const accDisp = document.getElementById('accuracy');
+
+        function startRace() {
+            // Reset state
+            isRacing = true;
+            input.disabled = false;
+            input.value = "";
+            input.focus();
+            swimmer.style.left = "0%";
+            wpmDisp.innerText = "0";
+            accDisp.innerText = "100";
+            startBtn.innerText = "Restart Race";
+
+            // Pick prompt
+            currentPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+            
+            // Build the character spans
+            promptDiv.innerHTML = "";
+            [...currentPrompt].forEach((char, i) => {
+                const span = document.createElement('span');
+                span.innerText = char;
+                span.classList.add('char');
+                if (i === 0) span.classList.add('current');
+                promptDiv.appendChild(span);
+            });
+
+            startTime = new Date();
+        }
+
+        input.addEventListener('input', () => {
+            if (!isRacing) return;
+
+            const typed = input.value;
+            const chars = promptDiv.querySelectorAll('.char');
+            let correctCount = 0;
+            let errors = 0;
+
+            chars.forEach((span, i) => {
+                const charToType = currentPrompt[i];
+                const userChar = typed[i];
+
+                // Clear previous highlights
+                span.classList.remove('correct', 'incorrect', 'current');
+
+                if (userChar == null) {
+                    // Not typed yet
+                    if (i === typed.length) span.classList.add('current');
+                } else if (userChar === charToType) {
+                    // Correct!
+                    span.classList.add('correct');
+                    correctCount++;
+                } else {
+                    // Mistake!
+                    span.classList.add('incorrect');
+                    errors++;
+                }
+            });
+
+            // Calculate Swimmer progress (0 to 90%)
+            const progress = (typed.length / currentPrompt.length) * 90;
+            swimmer.style.left = `${progress}%`;
+
+            // WPM & Accuracy
+            const timeElapsed = (new Date() - startTime) / 60000;
+            const wpm = timeElapsed > 0 ? Math.round((typed.length / 5) / timeElapsed) : 0;
+            const accuracy = typed.length > 0 ? Math.round(((typed.length - errors) / typed.length) * 100) : 100;
+
+            wpmDisp.innerText = wpm;
+            accDisp.innerText = Math.max(0, accuracy);
+
+            // Finish check
+            if (typed.length >= currentPrompt.length && errors === 0) {
+                isRacing = false;
+                input.disabled = true;
+                promptDiv.innerHTML = `<h2 style="color:var(--deep-water)">🏆 Race Complete!</h2><p>You finished at ${wpm} WPM!</p>`;
+            }
+        });
+
+        startBtn.addEventListener('click', startRace);
+
+    </script>
+</body>
+</html>
